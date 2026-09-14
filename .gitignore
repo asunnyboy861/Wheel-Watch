@@ -2,3 +2,5 @@
 keytext*.md
 COMPETITOR_REPORT.md
 .DS_Store
+xcuserdata/
+*.xcuserstate
