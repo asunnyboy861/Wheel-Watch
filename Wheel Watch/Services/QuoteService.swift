@@ -33,6 +33,7 @@ final class QuoteService {
     static let shared = QuoteService()
     private let session: URLSession
     private var cache: [String: StockQuote] = [:]
+    var backupSourceEnabled = false
 
     init(session: URLSession = .shared) {
         var config = URLSessionConfiguration.default
@@ -49,7 +50,7 @@ final class QuoteService {
             cache[key] = q
             return q
         }
-        if let q = try? await finnhubQuote(key) {
+        if backupSourceEnabled, let q = try? await finnhubQuote(key) {
             cache[key] = q
             return q
         }

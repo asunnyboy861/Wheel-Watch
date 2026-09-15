@@ -72,7 +72,7 @@ struct SettingsView: View {
         } header: {
             Text("Market Data")
         } footer: {
-            Text("Add your own Finnhub key for a faster backup source. Keys are stored in the Keychain and never leave this device.")
+            Text("Pro and BYO Data members can add a Finnhub key as a fast backup source. Keys are stored in the Keychain and never leave this device.")
         }
     }
 

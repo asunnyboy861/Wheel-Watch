@@ -24,7 +24,7 @@ struct PositionCardView: View {
             if let snap {
                 HStack(alignment: .firstTextBaseline) {
                     numberColumn(value: "\(snap.price.formatted(.number.precision(.fractionLength(2))))",
-                                 label: card.position.type.isCall ? "vs \(card.position.strike.formatted()) ↑" : "vs \(card.position.strike.formatted()) ↓")
+                                 label: "vs strike \(card.position.strike.formatted())")
                     numberColumn(value: String(format: "%.2f", abs(snap.delta)), label: "|delta|")
                     numberColumn(value: String(format: "$%.2f", snap.thetaPerDay), label: "theta/day")
                     numberColumn(value: String(format: "%.0f%%", card.unrealizedPct), label: "premium kept")

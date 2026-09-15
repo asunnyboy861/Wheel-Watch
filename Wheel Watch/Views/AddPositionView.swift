@@ -36,6 +36,7 @@ struct AddPositionView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         if viewModel.save(context: context) {
+                            NotificationService.requestAuthorization()
                             Task {
                                 await onSaved()
                                 dismiss()

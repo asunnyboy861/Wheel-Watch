@@ -8,6 +8,7 @@ struct HomeView: View {
     @State private var showAdd = false
     @State private var showPaywall = false
     @State private var rollTarget: Position?
+    @State private var rollRadarTarget: Position?
 
     var body: some View {
         NavigationStack {
@@ -51,10 +52,18 @@ struct HomeView: View {
             }
             .refreshable { await viewModel.refresh(context: context) }
             .task {
-                NotificationService.requestAuthorization()
                 NotificationService.shared.registerCategories()
+                QuoteService.shared.backupSourceEnabled = purchaseManager.isPro || purchaseManager.isBYO
                 BackgroundRefreshService.shared.schedule()
                 await viewModel.refresh(context: context)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openRollRadar)) { _ in
+                let symbol = UserDefaults.standard.string(forKey: "pendingRollSymbol") ?? ""
+                rollRadarTarget = viewModel.cards.first { $0.position.symbol == symbol }?.position
+                UserDefaults.standard.removeObject(forKey: "pendingRollSymbol")
+            }
+            .sheet(item: $rollRadarTarget) { position in
+                RollRadarView(position: position, currentValue: nil)
             }
             .sheet(isPresented: $showAdd) {
                 AddPositionView { await viewModel.refresh(context: context) }

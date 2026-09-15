@@ -13,6 +13,7 @@ struct Wheel_WatchApp: App {
         Task { @MainActor in
             AppEnvironment.shared.container = resolvedContainer
         }
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
         BackgroundRefreshService.shared.register()
     }
 

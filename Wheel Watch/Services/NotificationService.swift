@@ -1,6 +1,32 @@
 import Foundation
 import UserNotifications
 
+extension Notification.Name {
+    static let openRollRadar = Notification.Name("openRollRadar")
+}
+
+final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationDelegate()
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse) async {
+        let content = response.notification.request.content
+        guard content.categoryIdentifier == "ROLL_RADAR" else { return }
+        let parts = content.title.split(separator: " ")
+        if let symbol = parts.count > 1 ? String(parts[1]) : nil {
+            UserDefaults.standard.set(symbol, forKey: "pendingRollSymbol")
+            await MainActor.run {
+                NotificationCenter.default.post(name: .openRollRadar, object: nil)
+            }
+        }
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
+    }
+}
+
 final class NotificationService {
     static let shared = NotificationService()
     private let center = UNUserNotificationCenter.current()

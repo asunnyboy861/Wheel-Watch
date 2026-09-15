@@ -13,6 +13,20 @@ struct EvaluationResult {
 
 enum EvaluationService {
 
+    private static var hvCache: [String: (value: Double, day: String)] = [:]
+
+    private static func cachedHistoricalVolatility(symbol: String) async -> Double? {
+        let key = symbol.uppercased()
+        let formatter = DateFormatter()
+        formatter.timeZone = MarketCalendar.eastern
+        formatter.dateFormat = "yyyy-MM-dd"
+        let today = formatter.string(from: Date())
+        if let cached = hvCache[key], cached.day == today { return cached.value }
+        let hv = await QuoteService.shared.historicalVolatility(symbol: key)
+        if let hv { hvCache[key] = (hv, today) }
+        return hv
+    }
+
     static func evaluateAll(context: ModelContext) async -> [EvaluationResult] {
         let descriptor = FetchDescriptor<Position>(predicate: #Predicate { $0.isOpen })
         guard let positions = try? context.fetch(descriptor), !positions.isEmpty else { return [] }
@@ -27,7 +41,7 @@ enum EvaluationService {
             let symbol = position.symbol
             do {
                 let quote = try await QuoteService.shared.fetchQuote(symbol: symbol)
-                let hv = await QuoteService.shared.historicalVolatility(symbol: symbol)
+                let hv = await cachedHistoricalVolatility(symbol: symbol)
                 let sigma = hv ?? 0.35
                 let ivEstimated = hv == nil
                 let T = MarketCalendar.yearsToExpiry(position.expiry)
@@ -52,7 +66,7 @@ enum EvaluationService {
                                             earningsCrossesExpiry: EarningsCalendar.earningsBefore(expiry: position.expiry, symbol: symbol))
 
                 let evaluation = RuleEngine.evaluate(snap, rules: activeRules)
-                if evaluation.severity != .green {
+                if evaluation.severity != .green, shouldLog(symbol: symbol, severity: evaluation.severity, context: context) {
                     let entry = EventLogEntry(symbol: symbol,
                                               message: evaluation.messages.joined(separator: " · "),
                                               severity: "\(evaluation.severity.rawValue)",
@@ -71,7 +85,7 @@ enum EvaluationService {
             } catch {
                 offline = true
                 if let cached = QuoteService.shared.cachedQuote(symbol: symbol) {
-                    let hv = await QuoteService.shared.historicalVolatility(symbol: symbol)
+                    let hv = await cachedHistoricalVolatility(symbol: symbol)
                     let sigma = hv ?? 0.35
                     let T = MarketCalendar.yearsToExpiry(position.expiry)
                     let isCall = position.type.isCall
@@ -118,6 +132,15 @@ enum EvaluationService {
         AppGroupSnapshot.save(positions: widgetItems, thetaToday: thetaToday)
 
         return results.sorted { $0.severity > $1.severity }
+    }
+
+    private static func shouldLog(symbol: String, severity: Severity, context: ModelContext) -> Bool {
+        let severityKey = String(severity.rawValue)
+        let descriptor = FetchDescriptor<EventLogEntry>(
+            predicate: #Predicate { $0.symbol == symbol && $0.severityRaw == severityKey },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        guard let last = (try? context.fetch(descriptor))?.first else { return true }
+        return Date().timeIntervalSince(last.createdAt) > 3600
     }
 
     static func maybeSendDailyReport(results: [EvaluationResult], context: ModelContext) {

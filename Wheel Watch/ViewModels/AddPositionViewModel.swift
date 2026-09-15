@@ -36,8 +36,11 @@ final class AddPositionViewModel: ObservableObject {
 
     func search() async {
         guard query.count >= 1 else { return }
+        try? await Task.sleep(for: .milliseconds(350))
+        guard !Task.isCancelled else { return }
+        let term = query
         isSearching = true
-        searchResults = await QuoteService.shared.searchSymbols(query)
+        searchResults = await QuoteService.shared.searchSymbols(term)
         isSearching = false
     }
 
